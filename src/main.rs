@@ -159,7 +159,7 @@ impl Operand {
                 self.number + core[(pc + self.number) % m].b.number + m - 1,
             AddressMode::PostincrementIndirect => unimplemented!(),
         };
-        (ptr, core[pc + ptr % m])
+        (ptr, core.0[(pc + ptr) % m])
     }
 }
 
