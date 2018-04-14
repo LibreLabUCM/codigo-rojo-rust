@@ -169,6 +169,63 @@ impl Program {
                 let (a_ptr, _) = ir.a.eval(pc, self.size, &self.core);
                 self.warrior.queue.push_back(a_ptr);
             }
+            OpCode::CMP => {
+                let (_, a_ir) = ir.a.eval(pc, self.size, &self.core);
+                let (_, b_ir) = ir.b.eval(pc, self.size, &self.core);
+                match ir.modifier {
+                    Modifier::A => {
+                        if a_ir.a.number == b_ir.a.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::B => {
+                        if a_ir.b.number == b_ir.b.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::AB => {
+                        if a_ir.a.number == b_ir.b.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::BA => {
+                        if a_ir.b.number == b_ir.a.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::F => {
+                        if a_ir.a.number == b_ir.a.number
+                                && a_ir.b.number == b_ir.b.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::X => {
+                        if a_ir.a.number == b_ir.b.number
+                            && a_ir.b.number == b_ir.a.number {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                    Modifier::I => {
+                        if a_ir == b_ir {
+                            self.warrior.queue.push_back((pc + 2) % self.size)
+                        } else {
+                            self.warrior.queue.push_back((pc + 1) % self.size)
+                        }
+                    }
+                }
+            }
             _ => unimplemented!(),
         }
         true
