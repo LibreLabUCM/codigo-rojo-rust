@@ -165,6 +165,10 @@ impl Program {
             OpCode::MUL => arith!(|x, y| x * y),
             OpCode::DIV => arith_div!(|x, y| x / y),
             OpCode::MOD => arith_div!(|x, y| x % y),
+            OpCode::JMP => {
+                let (a_ptr, _) = ir.a.eval(pc, self.size, &self.core);
+                self.warrior.queue.push_back(a_ptr);
+            }
             _ => unimplemented!(),
         }
         true
