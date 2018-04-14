@@ -4,13 +4,13 @@ use std::collections::VecDeque;
 
 fn main() {
     let mut program = Program {
-        core: vec![],
+        core: Core(vec![]),
         size: 0,
         warrior: Warrior {
             queue: VecDeque::new(),
         }
     };
-    program.core.push(Instruction {
+    program.core.0.push(Instruction {
         code: OpCode::MOV,
         modifier: Modifier::I,
         a: Operand {
@@ -23,8 +23,8 @@ fn main() {
         },
     });
     program.size += 1;
-    for _ in 0..9 {
-        program.core.push(Instruction {
+    for _ in 0..3 {
+        program.core.0.push(Instruction {
             code: OpCode::DAT,
             modifier: Modifier::F,
             a: Operand {
@@ -39,10 +39,13 @@ fn main() {
         program.size += 1;
     }
     program.warrior.queue.push_back(0);
-    println!("{:?}\n", program.core);
-    for i in 0..2 {
+    program.core.print();
+    println!();
+    for i in 0..25 {
+        println!("{}", program.warrior.queue[0]);
         assert!(program.next());
-        println!("{:?}\n", program.core);
+        program.core.print();
+        println!();
     }
 }
 
@@ -58,29 +61,27 @@ impl Program {
             Some(pc) => pc,
             None => return false,
         };
-        let ir = self.core[pc];
+        let ir = self.core.0[pc];
         match ir.code {
             OpCode::DAT => (),
             OpCode::MOV => {
                 let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
                 let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
-                println!("{:?}", ir.modifier);
-                println!("{:?}", b_ptr);
                 match ir.modifier {
-                    Modifier::A => self.core[(pc + b_ptr) % self.size].a.number = a_ir.a.number,
-                    Modifier::B => self.core[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
-                    Modifier::AB => self.core[(pc + b_ptr) % self.size].b.number = a_ir.a.number,
-                    Modifier::BA => self.core[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
+                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.a.number,
+                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
+                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.a.number,
+                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
                     Modifier::F => {
-                        self.core[(pc + b_ptr) % self.size].a.number = a_ir.a.number;
-                        self.core[(pc + b_ptr) % self.size].b.number = a_ir.b.number;
+                        self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.a.number;
+                        self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.b.number;
                     }
                     Modifier::X => {
-                        self.core[(pc + b_ptr) % self.size].b.number = a_ir.a.number;
-                        self.core[(pc + b_ptr) % self.size].a.number = a_ir.b.number;
+                        self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.a.number;
+                        self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number;
                     }
                     Modifier::I => {
-                        self.core[(pc + b_ptr) % self.size] = a_ir;
+                        self.core.0[(pc + b_ptr) % self.size] = a_ir;
                     }
                 }
                 self.warrior.queue.push_back((pc + 1) % self.size)
@@ -95,15 +96,15 @@ struct Warrior {
     queue: VecDeque<usize>,
 }
 
-type Core = Vec<Instruction>;
+struct Core(Vec<Instruction>);
 
-/*
-impl ::std::fmt::Debug for Core {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{:?}", self)
+impl Core {
+    fn print(&self) {
+        for ir in &self.0 {
+            println!("{}", ir);
+        }
     }
 }
-*/
 
 #[derive(Clone, Copy, Debug)]
 struct Instruction {
@@ -111,6 +112,12 @@ struct Instruction {
     modifier: Modifier,
     a: Operand,
     b: Operand,
+}
+
+impl ::std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}.{} {}, {}", self.code, self.modifier, self.a, self.b)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -131,6 +138,18 @@ enum OpCode {
     //SPL,
 }
 
+impl ::std::fmt::Display for OpCode {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            OpCode::DAT => write!(f, "DAT"),
+            OpCode::MOV => write!(f, "MOV"),
+            OpCode::ADD => write!(f, "ADD"),
+            OpCode::JMP => write!(f, "JMP"),
+            OpCode::CMP => write!(f, "CMP"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Modifier {
     A,
@@ -140,6 +159,20 @@ enum Modifier {
     F,
     X,
     I,
+}
+
+impl ::std::fmt::Display for Modifier {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            Modifier::A => write!(f, "A"),
+            Modifier::B => write!(f, "B"),
+            Modifier::AB => write!(f, "AB"),
+            Modifier::BA => write!(f, "BA"),
+            Modifier::F => write!(f, "F"),
+            Modifier::X => write!(f, "X"),
+            Modifier::I => write!(f, "I"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -154,12 +187,18 @@ impl Operand {
             AddressMode::Immediate => 0,
             AddressMode::Direct => self.number,
             AddressMode::Indirect =>
-                self.number + core[(pc + self.number) % m].b.number,
+                self.number + core.0[(pc + self.number) % m].b.number,
             AddressMode::PredecrementIndirect =>
-                self.number + core[(pc + self.number) % m].b.number + m - 1,
+                self.number + core.0[(pc + self.number) % m].b.number + m - 1,
             AddressMode::PostincrementIndirect => unimplemented!(),
         };
         (ptr, core.0[(pc + ptr) % m])
+    }
+}
+
+impl ::std::fmt::Display for Operand {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}{}", self.mode, self.number)
     }
 }
 
@@ -170,4 +209,16 @@ enum AddressMode {
     Indirect,
     PredecrementIndirect,
     PostincrementIndirect,
+}
+
+impl ::std::fmt::Display for AddressMode {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            AddressMode::Immediate => write!(f, "#"),
+            AddressMode::Direct => write!(f, "$"),
+            AddressMode::Indirect => write!(f, "@"),
+            AddressMode::PredecrementIndirect => write!(f, "<"),
+            AddressMode::PostincrementIndirect => write!(f, ">"),
+        }
+    }
 }
