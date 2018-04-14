@@ -1,0 +1,6 @@
+[package]
+name = "codigo-rojo"
+version = "0.1.0"
+authors = ["Jorge Blázquez Saborido <jorge.jbs@protonmail.com>"]
+
+[dependencies]
