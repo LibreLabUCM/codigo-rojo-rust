@@ -62,6 +62,80 @@ impl Program {
             None => return false,
         };
         let ir = self.core.0[pc];
+
+        macro_rules! arith {
+            ($op:expr) => {{
+                let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
+                let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
+                match ir.modifier {
+                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.a.number, a_ir.a.number) % self.size,
+                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.b.number, a_ir.b.number) % self.size,
+                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number =
+                        $op(b_ir.a.number, a_ir.b.number) % self.size,
+                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.b.number, a_ir.a.number) % self.size,
+                    Modifier::F | Modifier::I => {
+                        self.core.0[(pc + b_ptr) % self.size].b.number =
+                            $op(b_ir.a.number, a_ir.a.number) % self.size;
+                        self.core.0[(pc + b_ptr) % self.size].a.number =
+                            $op(b_ir.b.number, a_ir.b.number) % self.size;
+                    }
+                    Modifier::X => {
+                        self.core.0[(pc + b_ptr) % self.size].b.number =
+                            $op(b_ir.a.number, a_ir.b.number) % self.size;
+                        self.core.0[(pc + b_ptr) % self.size].a.number =
+                            $op(b_ir.b.number, a_ir.a.number) % self.size;
+                    }
+                }
+                self.warrior.queue.push_back((pc + 1) % self.size)
+            }}
+        }
+
+        macro_rules! arith_div {
+            ($op:expr) => {{
+                let mut no_queue = false;
+                let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
+                let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
+                match ir.modifier {
+                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.a.number, a_ir.a.number) % self.size,
+                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.b.number, a_ir.b.number) % self.size,
+                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number =
+                        $op(b_ir.b.number, a_ir.a.number) % self.size,
+                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.a.number, a_ir.b.number) % self.size,
+                    Modifier::F | Modifier::I => {
+                        if a_ir.a.number != 0 {
+                            self.core.0[(pc + b_ptr) % self.size].a.number =
+                                $op(b_ir.a.number, a_ir.a.number) % self.size;
+                        }
+                        if a_ir.b.number != 0 {
+                            self.core.0[(pc + b_ptr) % self.size].b.number =
+                                $op(b_ir.b.number, a_ir.b.number) % self.size;
+                        }
+                        no_queue = a_ir.a.number != 0 || a_ir.b.number != 0;
+                    }
+                    Modifier::X => {
+                        if a_ir.a.number != 0 {
+                            self.core.0[(pc + b_ptr) % self.size].b.number =
+                                $op(b_ir.b.number, a_ir.a.number) % self.size;
+                        }
+                        if a_ir.b.number != 0 {
+                            self.core.0[(pc + b_ptr) % self.size].a.number =
+                                $op(b_ir.a.number, a_ir.b.number) % self.size;
+                        }
+                        no_queue = a_ir.a.number != 0 || a_ir.b.number != 0;
+                    }
+                }
+                if !no_queue {
+                    self.warrior.queue.push_back((pc + 1) % self.size)
+                }
+            }}
+        }
+
         match ir.code {
             OpCode::DAT => (),
             OpCode::MOV => {
@@ -86,6 +160,11 @@ impl Program {
                 }
                 self.warrior.queue.push_back((pc + 1) % self.size)
             }
+            OpCode::ADD => arith!(|x, y| x + y),
+            OpCode::SUB => arith!(|x, y| x + self.size - y),
+            OpCode::MUL => arith!(|x, y| x * y),
+            OpCode::DIV => arith_div!(|x, y| x / y),
+            OpCode::MOD => arith_div!(|x, y| x % y),
             _ => unimplemented!(),
         }
         true
@@ -125,10 +204,10 @@ enum OpCode {
     DAT,
     MOV,
     ADD,
-    //SUB,
-    //MUL,
-    //DIV,
-    //MOD,
+    SUB,
+    MUL,
+    DIV,
+    MOD,
     JMP,
     //JMZ,
     //JMN,
@@ -144,6 +223,10 @@ impl ::std::fmt::Display for OpCode {
             OpCode::DAT => write!(f, "DAT"),
             OpCode::MOV => write!(f, "MOV"),
             OpCode::ADD => write!(f, "ADD"),
+            OpCode::SUB => write!(f, "SUB"),
+            OpCode::MUL => write!(f, "MUL"),
+            OpCode::DIV => write!(f, "DIV"),
+            OpCode::MOD => write!(f, "MOD"),
             OpCode::JMP => write!(f, "JMP"),
             OpCode::CMP => write!(f, "CMP"),
         }
