@@ -246,7 +246,7 @@ impl Core {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Instruction {
     code: OpCode,
     modifier: Modifier,
@@ -260,7 +260,7 @@ impl ::std::fmt::Display for Instruction {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum OpCode {
     DAT,
     MOV,
@@ -294,7 +294,7 @@ impl ::std::fmt::Display for OpCode {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Modifier {
     A,
     B,
@@ -319,7 +319,7 @@ impl ::std::fmt::Display for Modifier {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Operand {
     mode: AddressMode,
     number: usize,
@@ -346,7 +346,7 @@ impl ::std::fmt::Display for Operand {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum AddressMode {
     Immediate,
     Direct,
