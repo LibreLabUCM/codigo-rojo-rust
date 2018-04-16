@@ -1,5 +1,7 @@
 // #![deny(warning)]
 
+mod mars;
+
 use std::collections::VecDeque;
 
 fn main() {
@@ -62,171 +64,21 @@ impl Program {
             None => return false,
         };
         let ir = self.core.0[pc];
-
-        macro_rules! arith {
-            ($op:expr) => {{
-                let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
-                let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
-                match ir.modifier {
-                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number =
-                        $op(b_ir.a.number, a_ir.a.number) % self.size,
-                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].b.number =
-                        $op(b_ir.b.number, a_ir.b.number) % self.size,
-                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number =
-                        $op(b_ir.b.number, a_ir.a.number) % self.size,
-                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
-                        $op(b_ir.a.number, a_ir.b.number) % self.size,
-                    Modifier::F | Modifier::I => {
-                        self.core.0[(pc + b_ptr) % self.size].b.number =
-                            $op(b_ir.a.number, a_ir.a.number) % self.size;
-                        self.core.0[(pc + b_ptr) % self.size].a.number =
-                            $op(b_ir.b.number, a_ir.b.number) % self.size;
-                    }
-                    Modifier::X => {
-                        self.core.0[(pc + b_ptr) % self.size].b.number =
-                            $op(b_ir.a.number, a_ir.b.number) % self.size;
-                        self.core.0[(pc + b_ptr) % self.size].a.number =
-                            $op(b_ir.b.number, a_ir.a.number) % self.size;
-                    }
-                }
-                self.warrior.queue.push_back((pc + 1) % self.size)
-            }}
-        }
-
-        macro_rules! arith_div {
-            ($op:expr) => {{
-                let mut no_queue = false;
-                let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
-                let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
-                match ir.modifier {
-                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number =
-                        $op(b_ir.a.number, a_ir.a.number) % self.size,
-                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number =
-                        $op(b_ir.b.number, a_ir.b.number) % self.size,
-                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number =
-                        $op(b_ir.b.number, a_ir.a.number) % self.size,
-                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
-                        $op(b_ir.a.number, a_ir.b.number) % self.size,
-                    Modifier::F | Modifier::I => {
-                        if a_ir.a.number != 0 {
-                            self.core.0[(pc + b_ptr) % self.size].a.number =
-                                $op(b_ir.a.number, a_ir.a.number) % self.size;
-                        }
-                        if a_ir.b.number != 0 {
-                            self.core.0[(pc + b_ptr) % self.size].b.number =
-                                $op(b_ir.b.number, a_ir.b.number) % self.size;
-                        }
-                        no_queue = a_ir.a.number != 0 || a_ir.b.number != 0;
-                    }
-                    Modifier::X => {
-                        if a_ir.a.number != 0 {
-                            self.core.0[(pc + b_ptr) % self.size].b.number =
-                                $op(b_ir.b.number, a_ir.a.number) % self.size;
-                        }
-                        if a_ir.b.number != 0 {
-                            self.core.0[(pc + b_ptr) % self.size].a.number =
-                                $op(b_ir.a.number, a_ir.b.number) % self.size;
-                        }
-                        no_queue = a_ir.a.number != 0 || a_ir.b.number != 0;
-                    }
-                }
-                if !no_queue {
-                    self.warrior.queue.push_back((pc + 1) % self.size)
-                }
-            }}
-        }
-
-        match ir.code {
-            OpCode::DAT => (),
-            OpCode::MOV => {
-                let (a_ptr, a_ir) = ir.a.eval(pc, self.size, &self.core);
-                let (b_ptr, b_ir) = ir.b.eval(pc, self.size, &self.core);
-                match ir.modifier {
-                    Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.a.number,
-                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
-                    Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.a.number,
-                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number,
-                    Modifier::F => {
-                        self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.a.number;
-                        self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.b.number;
-                    }
-                    Modifier::X => {
-                        self.core.0[(pc + b_ptr) % self.size].b.number = a_ir.a.number;
-                        self.core.0[(pc + b_ptr) % self.size].a.number = a_ir.b.number;
-                    }
-                    Modifier::I => {
-                        self.core.0[(pc + b_ptr) % self.size] = a_ir;
-                    }
-                }
-                self.warrior.queue.push_back((pc + 1) % self.size)
-            }
-            OpCode::ADD => arith!(|x, y| x + y),
-            OpCode::SUB => arith!(|x, y| x + self.size - y),
-            OpCode::MUL => arith!(|x, y| x * y),
-            OpCode::DIV => arith_div!(|x, y| x / y),
-            OpCode::MOD => arith_div!(|x, y| x % y),
-            OpCode::JMP => {
-                let (a_ptr, _) = ir.a.eval(pc, self.size, &self.core);
-                self.warrior.queue.push_back((pc + a_ptr) % self.size);
-            }
-            OpCode::CMP => {
-                let (_, a_ir) = ir.a.eval(pc, self.size, &self.core);
-                let (_, b_ir) = ir.b.eval(pc, self.size, &self.core);
-                match ir.modifier {
-                    Modifier::A => {
-                        if a_ir.a.number == b_ir.a.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::B => {
-                        if a_ir.b.number == b_ir.b.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::AB => {
-                        if a_ir.a.number == b_ir.b.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::BA => {
-                        if a_ir.b.number == b_ir.a.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::F => {
-                        if a_ir.a.number == b_ir.a.number
-                                && a_ir.b.number == b_ir.b.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::X => {
-                        if a_ir.a.number == b_ir.b.number
-                            && a_ir.b.number == b_ir.a.number {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                    Modifier::I => {
-                        if a_ir == b_ir {
-                            self.warrior.queue.push_back((pc + 2) % self.size)
-                        } else {
-                            self.warrior.queue.push_back((pc + 1) % self.size)
-                        }
-                    }
-                }
-            }
-            _ => unimplemented!(),
+        use OpCode::*;
+        use mars::{mov, add, sub, mul, div, mod_, jmp, cmp};
+        let push_to_queue = match ir.code {
+            DAT => vec![],
+            MOV => mov(ir, pc, &mut self.core, self.size),
+            ADD => add(ir, pc, &mut self.core, self.size),
+            SUB => sub(ir, pc, &mut self.core, self.size),
+            MUL => mul(ir, pc, &mut self.core, self.size),
+            DIV => div(ir, pc, &mut self.core, self.size),
+            MOD => mod_(ir, pc, &mut self.core, self.size),
+            JMP => jmp(ir, pc, &mut self.core, self.size),
+            CMP => cmp(ir, pc, &mut self.core, self.size),
+        };
+        for ptr in push_to_queue {
+            self.warrior.queue.push_back(ptr);
         }
         true
     }
@@ -236,7 +88,7 @@ struct Warrior {
     queue: VecDeque<usize>,
 }
 
-struct Core(Vec<Instruction>);
+pub struct Core(Vec<Instruction>);
 
 impl Core {
     fn print(&self) {
@@ -247,7 +99,7 @@ impl Core {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Instruction {
+pub struct Instruction {
     code: OpCode,
     modifier: Modifier,
     a: Operand,
@@ -295,7 +147,7 @@ impl ::std::fmt::Display for OpCode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Modifier {
+pub enum Modifier {
     A,
     B,
     AB,
