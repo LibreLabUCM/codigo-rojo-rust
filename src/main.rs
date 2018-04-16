@@ -70,12 +70,12 @@ impl Program {
                 match ir.modifier {
                     Modifier::A => self.core.0[(pc + b_ptr) % self.size].a.number =
                         $op(b_ir.a.number, a_ir.a.number) % self.size,
-                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].a.number =
+                    Modifier::B => self.core.0[(pc + b_ptr) % self.size].b.number =
                         $op(b_ir.b.number, a_ir.b.number) % self.size,
                     Modifier::AB => self.core.0[(pc + b_ptr) % self.size].b.number =
-                        $op(b_ir.a.number, a_ir.b.number) % self.size,
-                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
                         $op(b_ir.b.number, a_ir.a.number) % self.size,
+                    Modifier::BA => self.core.0[(pc + b_ptr) % self.size].a.number =
+                        $op(b_ir.a.number, a_ir.b.number) % self.size,
                     Modifier::F | Modifier::I => {
                         self.core.0[(pc + b_ptr) % self.size].b.number =
                             $op(b_ir.a.number, a_ir.a.number) % self.size;
@@ -167,7 +167,7 @@ impl Program {
             OpCode::MOD => arith_div!(|x, y| x % y),
             OpCode::JMP => {
                 let (a_ptr, _) = ir.a.eval(pc, self.size, &self.core);
-                self.warrior.queue.push_back(a_ptr);
+                self.warrior.queue.push_back((pc + a_ptr) % self.size);
             }
             OpCode::CMP => {
                 let (_, a_ir) = ir.a.eval(pc, self.size, &self.core);
