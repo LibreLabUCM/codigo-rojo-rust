@@ -8,16 +8,13 @@ use std::collections::VecDeque;
 fn main() {
     let mut program = Program {
         core: Core(vec![]),
-        size: 0,
         warrior: Warrior {
             queue: VecDeque::new(),
         }
     };
     program.core.0.push(parse::parse_ir("MOV.I 0, 1").unwrap());
-    program.size += 1;
     for _ in 0..3 {
         program.core.0.push(parse::parse_ir("DAT.F #0, #0").unwrap());
-        program.size += 1;
     }
     program.warrior.queue.push_back(0);
     program.core.print();
@@ -32,7 +29,6 @@ fn main() {
 
 struct Program {
     core: Core,
-    size: usize,
     warrior: Warrior
 }
 
@@ -47,14 +43,14 @@ impl Program {
         use mars::{mov, add, sub, mul, div, mod_, jmp, cmp};
         let push_to_queue = match ir.code {
             DAT => vec![],
-            MOV => mov(ir, pc, &mut self.core, self.size),
-            ADD => add(ir, pc, &mut self.core, self.size),
-            SUB => sub(ir, pc, &mut self.core, self.size),
-            MUL => mul(ir, pc, &mut self.core, self.size),
-            DIV => div(ir, pc, &mut self.core, self.size),
-            MOD => mod_(ir, pc, &mut self.core, self.size),
-            JMP => jmp(ir, pc, &mut self.core, self.size),
-            CMP => cmp(ir, pc, &mut self.core, self.size),
+            MOV => mov(ir, pc, &mut self.core),
+            ADD => add(ir, pc, &mut self.core),
+            SUB => sub(ir, pc, &mut self.core),
+            MUL => mul(ir, pc, &mut self.core),
+            DIV => div(ir, pc, &mut self.core),
+            MOD => mod_(ir, pc, &mut self.core),
+            JMP => jmp(ir, pc, &mut self.core),
+            CMP => cmp(ir, pc, &mut self.core),
         };
         for ptr in push_to_queue {
             self.warrior.queue.push_back(ptr);
@@ -157,7 +153,8 @@ pub struct Operand {
 }
 
 impl Operand {
-    fn eval(self, pc: usize, m: usize, core: &Core) -> (usize, Instruction) {
+    fn eval(self, pc: usize, core: &Core) -> (usize, Instruction) {
+        let m = core.0.len();
         let ptr: usize = match self.mode {
             AddressMode::Immediate => 0,
             AddressMode::Direct => self.number,

@@ -2,9 +2,10 @@ use Core;
 use Instruction;
 use Modifier;
 
-pub fn mov(ir: Instruction, pc: usize, core: &mut Core, m: usize) -> Vec<usize> {
-    let (a_ptr, a_ir) = ir.a.eval(pc, m, &core);
-    let (b_ptr, b_ir) = ir.b.eval(pc, m, &core);
+pub fn mov(ir: Instruction, pc: usize, core: &mut Core) -> Vec<usize> {
+    let m = core.0.len();
+    let (a_ptr, a_ir) = ir.a.eval(pc, &core);
+    let (b_ptr, b_ir) = ir.b.eval(pc, &core);
     match ir.modifier {
         Modifier::A => core.0[(pc + b_ptr) % m].a.number = a_ir.a.number,
         Modifier::B => core.0[(pc + b_ptr) % m].a.number = a_ir.b.number,

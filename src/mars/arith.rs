@@ -1,8 +1,9 @@
 macro_rules! fn_arith {
     ($name:ident, $op:expr) => {
-        pub fn $name(ir: Instruction, pc: usize, core: &mut Core, m: usize) -> Vec<usize> {
-            let (a_ptr, a_ir) = ir.a.eval(pc, m, &core);
-            let (b_ptr, b_ir) = ir.b.eval(pc, m, &core);
+        pub fn $name(ir: Instruction, pc: usize, core: &mut Core) -> Vec<usize> {
+            let m = core.0.len();
+            let (a_ptr, a_ir) = ir.a.eval(pc, &core);
+            let (b_ptr, b_ir) = ir.b.eval(pc, &core);
             match ir.modifier {
                 Modifier::A => core.0[(pc + b_ptr) % m].a.number =
                     $op(b_ir.a.number, a_ir.a.number, m) % m,
