@@ -7,38 +7,36 @@ use std::collections::VecDeque;
 
 fn main() {
     let mut program = Program {
-        core: Core(vec![]),
-        warrior: Warrior {
-            queue: VecDeque::new(),
-        }
+        core: vec![],
+        warrior: VecDeque::new(),
     };
-    program.core.0.push(parse::parse_ir("MOV.I 0, 1").unwrap());
+    program.core.push(parse::parse_ir("MOV.I 0, 1").unwrap());
     for _ in 0..3 {
-        program.core.0.push(parse::parse_ir("DAT.F #0, #0").unwrap());
+        program.core.push(parse::parse_ir("DAT.F #0, #0").unwrap());
     }
-    program.warrior.queue.push_back(0);
-    program.core.print();
+    program.warrior.push_back(0);
+    print_core(&program.core);
     println!();
     for i in 0..25 {
-        println!("{}", program.warrior.queue[0]);
+        println!("{}", program.warrior[0]);
         assert!(program.next());
-        program.core.print();
+        print_core(&program.core);
         println!();
     }
 }
 
 struct Program {
     core: Core,
-    warrior: Warrior
+    warrior: VecDeque<usize>,
 }
 
 impl Program {
     fn next(&mut self) -> bool {
-        let pc = match self.warrior.queue.pop_front() {
+        let pc = match self.warrior.pop_front() {
             Some(pc) => pc,
             None => return false,
         };
-        let ir = self.core.0[pc];
+        let ir = self.core[pc];
         use OpCode::*;
         use mars::{mov, add, sub, mul, div, mod_, jmp, cmp};
         let push_to_queue = match ir.code {
@@ -53,23 +51,17 @@ impl Program {
             CMP => cmp(ir, pc, &mut self.core),
         };
         for ptr in push_to_queue {
-            self.warrior.queue.push_back(ptr);
+            self.warrior.push_back(ptr);
         }
         true
     }
 }
 
-struct Warrior {
-    queue: VecDeque<usize>,
-}
+type Core = Vec<Instruction>;
 
-pub struct Core(Vec<Instruction>);
-
-impl Core {
-    fn print(&self) {
-        for ir in &self.0 {
-            println!("{}", ir);
-        }
+pub fn print_core(core: &Core) {
+    for ir in core {
+        println!("{}", ir);
     }
 }
 
@@ -154,17 +146,17 @@ pub struct Operand {
 
 impl Operand {
     fn eval(self, pc: usize, core: &Core) -> (usize, Instruction) {
-        let m = core.0.len();
+        let m = core.len();
         let ptr: usize = match self.mode {
             AddressMode::Immediate => 0,
             AddressMode::Direct => self.number,
             AddressMode::Indirect =>
-                self.number + core.0[(pc + self.number) % m].b.number,
+                self.number + core[(pc + self.number) % m].b.number,
             AddressMode::PredecrementIndirect =>
-                self.number + core.0[(pc + self.number) % m].b.number + m - 1,
+                self.number + core[(pc + self.number) % m].b.number + m - 1,
             AddressMode::PostincrementIndirect => unimplemented!(),
         };
-        (ptr, core.0[(pc + ptr) % m])
+        (ptr, core[(pc + ptr) % m])
     }
 }
 
