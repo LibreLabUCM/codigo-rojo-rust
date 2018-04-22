@@ -1,6 +1,7 @@
 // #![deny(warning)]
 
 mod mars;
+mod parse;
 
 use std::collections::VecDeque;
 
@@ -12,32 +13,10 @@ fn main() {
             queue: VecDeque::new(),
         }
     };
-    program.core.0.push(Instruction {
-        code: OpCode::MOV,
-        modifier: Modifier::I,
-        a: Operand {
-            mode: AddressMode::Direct,
-            number: 0,
-        },
-        b: Operand {
-            mode: AddressMode::Direct,
-            number: 1,
-        },
-    });
+    program.core.0.push(parse::parse_ir("MOV.I 0, 1").unwrap());
     program.size += 1;
     for _ in 0..3 {
-        program.core.0.push(Instruction {
-            code: OpCode::DAT,
-            modifier: Modifier::F,
-            a: Operand {
-                mode: AddressMode::Immediate,
-                number: 0,
-            },
-            b: Operand {
-                mode: AddressMode::Immediate,
-                number: 0,
-            },
-        });
+        program.core.0.push(parse::parse_ir("DAT.F #0, #0").unwrap());
         program.size += 1;
     }
     program.warrior.queue.push_back(0);
@@ -172,7 +151,7 @@ impl ::std::fmt::Display for Modifier {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Operand {
+pub struct Operand {
     mode: AddressMode,
     number: usize,
 }
