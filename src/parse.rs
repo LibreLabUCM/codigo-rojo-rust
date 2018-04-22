@@ -11,7 +11,7 @@ pub fn parse(s: &str) -> Option<Vec<Instruction>> {
     None
 }
 
-pub fn parse_ir(string: &str) -> Option<Instruction> {
+pub fn parse_ir(string: &str, core_size: usize) -> Option<Instruction> {
     let mut chars = string.chars().peekable();
     let code = match chars.by_ref().skip_while(|&c| c == ' ').take(3).collect::<String>().as_str() {
         "DAT" => OpCode::DAT,
@@ -44,7 +44,7 @@ pub fn parse_ir(string: &str) -> Option<Instruction> {
     while let Some(&' ') = chars.peek() {
         chars.next();
     }
-    let a = match parse_operand(chars.by_ref()) {
+    let a = match parse_operand(chars.by_ref(), core_size) {
         Some(x) => x,
         None => return None,
     };
@@ -56,7 +56,7 @@ pub fn parse_ir(string: &str) -> Option<Instruction> {
         if chars.next() != Some(',') {
             return None
         }
-        b = match parse_operand(chars.by_ref()) {
+        b = match parse_operand(chars.by_ref(), core_size) {
             Some(x) => x,
             None => return None,
         };
@@ -74,7 +74,7 @@ pub fn parse_ir(string: &str) -> Option<Instruction> {
     })
 }
 
-fn parse_operand(chars: &mut Peekable<Chars>) -> Option<Operand> {
+fn parse_operand(chars: &mut Peekable<Chars>, core_size: usize) -> Option<Operand> {
     let c = chars.by_ref().skip_while(|&c| c == ' ').next();
     let mut number_string = String::new();
     let mode = match c {
@@ -83,12 +83,16 @@ fn parse_operand(chars: &mut Peekable<Chars>) -> Option<Operand> {
         Some('@') => AddressMode::Indirect,
         Some('<') => AddressMode::PredecrementIndirect,
         Some('>') => AddressMode::PostincrementIndirect,
-        Some(d) if d.is_digit(10) => {
+        Some(d) if d.is_digit(10) || d == '-' => {
             number_string.push(d);
             AddressMode::Direct
         },
         _ => return None,
     };
+    if number_string.is_empty() && chars.peek() == Some(&'-') {
+        number_string.push('-');
+        chars.next();
+    }
     loop {
         if let Some(&c) = chars.peek() {
             if c.is_digit(10) {
@@ -101,8 +105,9 @@ fn parse_operand(chars: &mut Peekable<Chars>) -> Option<Operand> {
             break;
         }
     }
-    let number = match number_string.parse() {
-        Ok(x) => x,
+    let number = match number_string.parse::<isize>() {
+        Ok(x) if x < 0 => (core_size as isize + x) as usize % core_size,
+        Ok(x) => x as usize % core_size,
         _ => return None,
     };
     Some(Operand {

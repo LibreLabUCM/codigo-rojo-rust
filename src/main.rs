@@ -10,14 +10,18 @@ fn main() {
         core: vec![],
         warrior: VecDeque::new(),
     };
-    program.core.push(parse::parse_ir("MOV.I 0, 1").unwrap());
-    for _ in 0..3 {
-        program.core.push(parse::parse_ir("DAT.F #0, #0").unwrap());
+    let core_size = 20;
+    program.core.push(parse::parse_ir("ADD.AB #4, 3", core_size).unwrap());
+    program.core.push(parse::parse_ir("MOV.I 2, @2", core_size).unwrap());
+    program.core.push(parse::parse_ir("JMP.B -2", core_size).unwrap());
+    program.core.push(parse::parse_ir("DAT.F #0, #0", core_size).unwrap());
+    for _ in program.core.len()..core_size {
+        program.core.push(parse::parse_ir("DAT.F #0, #0", core_size).unwrap());
     }
     program.warrior.push_back(0);
     print_core(&program.core);
     println!();
-    for i in 0..25 {
+    for _ in 0..25 {
         println!("{}", program.warrior[0]);
         assert!(program.next());
         print_core(&program.core);
